@@ -46,6 +46,7 @@ export interface UmbrellaTestContext extends Mocha.Context {
     data?: ServerHandle; // external server data
     backgroundSessionCount?: number;
     backgroundSubscriptionCount?: number;
+    _originalAutoAccept?: string;
 }
 
 async function start_external_server(test: UmbrellaTestContext, options: IStartServerOptions) {
@@ -112,11 +113,26 @@ export async function afterTest(test: UmbrellaTestContext) {
             // left as log only (original test tolerated mismatch)
         }
     }
+
+    // Restore original auto-accept setting
+    const originalEnv = test._originalAutoAccept;
+    if (originalEnv !== undefined) {
+        process.env.NODE_OPCUA_AUTO_ACCEPT_CERTS = originalEnv;
+    } else {
+        delete process.env.NODE_OPCUA_AUTO_ACCEPT_CERTS;
+    }
 }
 
 export async function beforeTest(test: UmbrellaTestContext) {
     test.backgroundSessionCount = 0;
     test.backgroundSubscriptionCount = 0;
+
+    // Enable auto-accept for default certificate manager to maintain compatibility
+    // with self-signed certificates in tests
+    const originalEnv = process.env.NODE_OPCUA_AUTO_ACCEPT_CERTS;
+    process.env.NODE_OPCUA_AUTO_ACCEPT_CERTS = "true";
+    test._originalAutoAccept = originalEnv;
+
     const options: IStartServerOptions = {
         port: test.port ? parseInt(test.port.toString(), 10) : 26543,
         maxConnectionsPerEndpoint: 500,

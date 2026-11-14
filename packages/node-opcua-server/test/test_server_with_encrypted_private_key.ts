@@ -32,8 +32,22 @@ async function makeTmpDir(name: string): Promise<string> {
 describe("OPCUAServer with a passphrase-protected private key", function (this: Mocha.Suite) {
     this.timeout(Math.max(60000, this.timeout()));
 
+    let originalEnv: string | undefined;
+
     before(async () => {
         await extractFullyQualifiedDomainName();
+        // The client uses the default application PKI, which is secure by default:
+        // enable auto-accept so the self-signed server certificate is trusted.
+        originalEnv = process.env.NODE_OPCUA_AUTO_ACCEPT_CERTS;
+        process.env.NODE_OPCUA_AUTO_ACCEPT_CERTS = "true";
+    });
+
+    after(() => {
+        if (originalEnv !== undefined) {
+            process.env.NODE_OPCUA_AUTO_ACCEPT_CERTS = originalEnv;
+        } else {
+            delete process.env.NODE_OPCUA_AUTO_ACCEPT_CERTS;
+        }
     });
 
     it("EK1: starts, serves a SignAndEncrypt session, and keeps the key encrypted on disk", async () => {
